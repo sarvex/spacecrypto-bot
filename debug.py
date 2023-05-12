@@ -22,7 +22,7 @@ class Debug:
         self. level= level
         self.destino = destino
         if self.destino == 'monitor':
-            print('[{} {}] [{}] {}'.format(datetime.date.today(), hora_rede_local, level, msg)) 
+            print(f'[{datetime.date.today()} {hora_rede_local}] [{level}] {msg}')
         elif self.destino == 'arquivo':
             if self.level == 'DEBUG':
                 logging.debug(msg)
@@ -34,8 +34,8 @@ class Debug:
                 logging.error(msg)
             elif self.level == 'CRITICAL':
                 logging.critical(msg)
-        elif self.destino == 'ambos':    
-            print('[{} {}] [{}] {}'.format(datetime.date.today(), hora_rede_local, level, msg)) 
+        elif self.destino == 'ambos':
+            print(f'[{datetime.date.today()} {hora_rede_local}] [{level}] {msg}')
             if self.level == 'DEBUG':
                 logging.debug(msg)
             elif self.level == 'INFO':

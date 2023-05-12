@@ -59,11 +59,9 @@ def addRandomness(n, randomn_factor_size=None):
         randomness_percentage = 0.1
         randomn_factor_size = randomness_percentage * n
     random_factor = 2 * random() * randomn_factor_size
-    if random_factor > 5:
-        random_factor = 5
+    random_factor = min(random_factor, 5)
     without_average_random_factor = n - randomn_factor_size
-    randomized_n = int(without_average_random_factor + random_factor)
-    return int(randomized_n)
+    return int(without_average_random_factor + random_factor)
 
 def moveToWithRandomness(x,y,t):
     pyautogui.moveTo(addRandomness(x,10),addRandomness(y,10),t+random()/2)
@@ -77,7 +75,7 @@ def load_images(dir_path='./img_compare/'):
     file_names = listdir(dir_path)
     targets = {}
     for file in file_names:
-        path = 'img_compare/' + file
+        path = f'img_compare/{file}'
         targets[remove_suffix(file, '.png')] = cv2.imread(path)
     return targets
 
@@ -92,17 +90,12 @@ def show(rectangles, img = None):
     cv2.waitKey(0)
 
 def clickBtn(img,name=None, timeout=3, threshold = th['default']):
-    if not name is None:
-        pass
     start = time.time()
-    while(True):
+    while True:
         matches = positions(img, threshold=threshold)
-        if(len(matches)==0):
+        if (len(matches)==0):
             hast_timed_out = time.time()-start > timeout
-            if(hast_timed_out):
-                if not name is None:
-                    pass
-
+            if hast_timed_out:
                 return False
             continue
         x,y,w,h = matches[0]
@@ -127,8 +120,12 @@ def positions(target, threshold=th['default'],img = None):
     yloc, xloc = np.where(result >= threshold)
     rectangles = []
     for (x, y) in zip(xloc, yloc):
-        rectangles.append([int(x), int(y), int(w), int(h)])
-        rectangles.append([int(x), int(y), int(w), int(h)])
+        rectangles.extend(
+            (
+                [int(x), int(y), int(w), int(h)],
+                [int(x), int(y), int(w), int(h)],
+            )
+        )
     rectangles, weights = cv2.groupRectangles(rectangles, 1, 0.2)
     return rectangles
 
@@ -149,7 +146,7 @@ def scroll(clickAndDragAmount):
 
 
 def loginSPG():
-    global login_attempts    
+    global login_attempts
     if login_attempts > 3:
         dbg.console('Too many login attempts, refreshing', 'ERROR', 'ambos')
         login_attempts = 0
@@ -161,10 +158,13 @@ def loginSPG():
     if clickBtn(images['sign'], name='sign button', timeout=8):
         login_attempts = login_attempts + 1
         return
-    if not clickBtn(images['select-wallet-1-no-hover'], name='selectMetamaskBtn'):
-        if clickBtn(images['select-wallet-1-hover'], name='selectMetamaskHoverBtn', threshold  = th['commom'] ):
-            pass
-    else:
+    if not clickBtn(
+        images['select-wallet-1-no-hover'], name='selectMetamaskBtn'
+    ) and clickBtn(
+        images['select-wallet-1-hover'],
+        name='selectMetamaskHoverBtn',
+        threshold=th['commom'],
+    ):
         pass
     if clickBtn(images['sign'], name='signBtn', timeout = 20):
         login_attempts = login_attempts + 1
@@ -174,57 +174,62 @@ def playSPG():
         dbg.console('played SPG','INFO', 'ambos')
 
 def login():
-    if len(positions(images['connect-wallet'], th['commom'])) > 0:
-        processLogin() 
-        return True
-    else:
+    if len(positions(images['connect-wallet'], th['commom'])) <= 0:
         return False
+    processLogin()
+    return True
 
 def confirm():
     global cont_boss
     confirm_action = False
-    if len(positions(images['lose'], th['commom'])) > 0 and cont_boss > 1:
-        if clickBtn(images['confirm'], name='okBtn', timeout=1, threshold  = th['commom']):
-            dbg.console('Confirm encontrado','INFO', 'ambos')
-            time.sleep(2) 
-            endFight()  
-            confirm_action = True
-    if len(positions(images['victory'], th['commom'])) > 0:
-        if clickBtn(images['confirm-victory'], name='okVicBtn', timeout=2) or clickBtn(images['confirm-bf'], name='okVicBtn', timeout=2):
-            dbg.console('Confirm victory encontrado','INFO', 'ambos')
-            dbg.console('Boss ' + str(cont_boss) + " derrotado",'INFO', 'ambos')
-            cont_boss = cont_boss + 1
-            confirm_action = True
-            if st['boss_surrender'] != 0:
-                if cont_boss == st['boss_surrender']:
-                    dbg.console("Surrender boss: " + str(st['boss_surrender']), 'INFO', 'ambos')
-                    time.sleep(3)
-                    clickBtn(images['spg-surrender'])
-                    time.sleep(1)
-                    clickBtn(images['confirm-victory'], name='okVicBtn', timeout=2)
-                    cont_boss = 1
-            if st['key_waves'] == True: 
-                if cont_boss == 9:
-                    time.sleep(30) 
-                    dbg.console("Boss 9, refresh ships", 'DEBUG', 'ambos')
-                    clickBtn(images['ship'])
-                if cont_boss == 14:
-                    time.sleep(30) 
-                    dbg.console("Boss 14, refresh ships", 'DEBUG', 'ambos')
-                    clickBtn(images['ship'])
-                if cont_boss == 19:
-                    time.sleep(30) 
-                    dbg.console("Boss 19, refresh ships", 'DEBUG', 'ambos')
-                    clickBtn(images['ship'])
+    if (
+        len(positions(images['lose'], th['commom'])) > 0
+        and cont_boss > 1
+        and clickBtn(
+            images['confirm'], name='okBtn', timeout=1, threshold=th['commom']
+        )
+    ):
+        dbg.console('Confirm encontrado','INFO', 'ambos')
+        time.sleep(2)
+        endFight()
+        confirm_action = True
+    if len(positions(images['victory'], th['commom'])) > 0 and (
+        clickBtn(images['confirm-victory'], name='okVicBtn', timeout=2)
+        or clickBtn(images['confirm-bf'], name='okVicBtn', timeout=2)
+    ):
+        dbg.console('Confirm victory encontrado','INFO', 'ambos')
+        dbg.console(f'Boss {str(cont_boss)} derrotado', 'INFO', 'ambos')
+        cont_boss = cont_boss + 1
+        confirm_action = True
+        if st['boss_surrender'] != 0 and cont_boss == st['boss_surrender']:
+            dbg.console("Surrender boss: " + str(st['boss_surrender']), 'INFO', 'ambos')
+            time.sleep(3)
+            clickBtn(images['spg-surrender'])
+            time.sleep(1)
+            clickBtn(images['confirm-victory'], name='okVicBtn', timeout=2)
+            cont_boss = 1
+        if st['key_waves'] == True: 
+            if cont_boss == 14:
+                time.sleep(30)
+                dbg.console("Boss 14, refresh ships", 'DEBUG', 'ambos')
+                clickBtn(images['ship'])
+            elif cont_boss == 19:
+                time.sleep(30)
+                dbg.console("Boss 19, refresh ships", 'DEBUG', 'ambos')
+                clickBtn(images['ship'])
+            elif cont_boss == 9:
+                time.sleep(30)
+                dbg.console("Boss 9, refresh ships", 'DEBUG', 'ambos')
+                clickBtn(images['ship'])
     return confirm_action
 
 def removeSpaceships():
-    time.sleep(2)   
+    time.sleep(2)
     while True: 
         buttons = positions(images['spg-x'], threshold=th['hard'])
-        buttonsNewOrder = []
         if len(buttons) > 0:
             index = len(buttons)
+            buttonsNewOrder = []
             while index > 0:
                 index -= 1
                 buttonsNewOrder.append(buttons[index])
@@ -236,14 +241,12 @@ def removeSpaceships():
 
 def clickButtonsFight():
     global ships_clicks
-    offset_x = 50
-    offset_y = 30
-    
     if st['send_ships_full'] == True:
         green_bars = positions(images['ship-full'], th['green_bar'])
-        not_working_green_bars = []
-        for bar in green_bars:
-            not_working_green_bars.append(bar)
+        not_working_green_bars = list(green_bars)
+        offset_x = 50
+        offset_y = 30
+
         for (x, y, w, h) in not_working_green_bars:
             moveToWithRandomness(x+offset_x+(w/2),y+offset_y+(h/2),1)
             pyautogui.click()
@@ -309,31 +312,30 @@ def refreshSpaceships(qtd):
     go_to_boss = False
     cda =  100
     aux_ships = 0
-    
+
     empty_scrolls_attempts = st['qtd_send_spaceships']
     if ships_clicks > 0:
-        dbg.console('Quantidade ja selecionada:' + str(ships_clicks), 'DEBUG', 'ambos')
+        dbg.console(f'Quantidade ja selecionada:{str(ships_clicks)}', 'DEBUG', 'ambos')
         if ships_clicks == st['qtd_send_spaceships']:
             empty_scrolls_attempts = 0
             goToFight()
-    while(empty_scrolls_attempts >0):        
+    while (empty_scrolls_attempts >0):    
         aux_ships = ships_clicks
         if ships_15_15():
             go_to_boss = True
             break
-        buttonsClicked = clickButtonsFight()        
+        buttonsClicked = clickButtonsFight()
         if buttonsClicked == 0:
             empty_scrolls_attempts = empty_scrolls_attempts - 1
             scroll(-cda)
         elif buttonsClicked == -1:
-            empty_scrolls_attempts = 0   
-        else:
-            if buttonsClicked > 0:
-                empty_scrolls_attempts = empty_scrolls_attempts + 1
-        
+            empty_scrolls_attempts = 0
+        elif buttonsClicked > 0:
+            empty_scrolls_attempts = empty_scrolls_attempts + 1
+
         time.sleep(2.1)
         if aux_ships != ships_clicks:
-            dbg.console('Spaceships sent to Fight: ' + str(ships_clicks), 'INFO', 'ambos')
+            dbg.console(f'Spaceships sent to Fight: {str(ships_clicks)}', 'INFO', 'ambos')
 
     if ships_clicks == st['qtd_send_spaceships'] or cont_boss > 1 or go_to_boss == True:
         empty_scrolls_attempts = 0
@@ -391,14 +393,14 @@ def zero_ships():
     return False                  
 
 def main():
-    global images    
+    global images
     global login_attempts
     login_attempts = 0
     images = load_images()
 
-    print(str_in)        
+    print(str_in)
     time.sleep(5)
-    dbg.console('Bot Iniciado. Versao: ' + str(VERSAO_SCRIPT), 'INFO', 'ambos')
+    dbg.console(f'Bot Iniciado. Versao: {str(VERSAO_SCRIPT)}', 'INFO', 'ambos')
     dbg.console('Qtd naves total: ' + str(st['empty_qtd_spaceships']), 'INFO', 'ambos')
     dbg.console('Qtd naves enviar: ' + str(st['qtd_send_spaceships']), 'INFO', 'ambos')
 
@@ -418,26 +420,25 @@ def main():
         if actual_time - time_start["login"] > addRandomness(time_to_check['login'] * 1):
             sys.stdout.flush()
             time_start["login"] = actual_time
-            if not login():
-                if len(positions(images['fight-boss'], th['hard']))  > 0:
-                    if st['remove_ships'] == True:
-                        removeSpaceships()
-                    refreshSpaceships(0)
-                    action_found = True
-            else:
+            if login():
                 action_found = True     
 
+            elif len(positions(images['fight-boss'], th['hard']))  > 0:
+                if st['remove_ships'] == True:
+                    removeSpaceships()
+                refreshSpaceships(0)
+                action_found = True
         if confirm():
-            action_found = True 
+            action_found = True
         if zero_ships():
             action_found = True       
-        
+
         if actual_time - time_start["close"] > time_to_check['close']:
             time_start["close"] = actual_time
             if screen_close():
                 action_found = True
 
-        if action_found == False:
+        if not action_found:
             dbg.console('Nenhuma acao encontrada', 'WARNING', 'ambos')
 
 if __name__ == '__main__':
